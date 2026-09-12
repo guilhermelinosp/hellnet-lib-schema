@@ -17,7 +17,7 @@ permissions:
 jobs:
   release:
     name: release
-    uses: guilhermelinosp/templates/.github/workflows/release.yml@e7d093b460c1e25f16121d509eefcbb597612c95 # main
+    uses: guilhermelinosp/templates/.github/workflows/release.yml@9aa28e4932048b724e165f169963643e8c4bcd69 # main
     secrets:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     permissions:
