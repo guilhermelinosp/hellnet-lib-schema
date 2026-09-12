@@ -1,5 +1,5 @@
 {
-  "name": "fast-ride-accepted",
+  "name": "ride.accepted.v1",
   "type": "avro",
   "version": 1,
   "compatibility": "BACKWARD",
