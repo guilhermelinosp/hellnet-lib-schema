@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Discover and register the repository's Fast Avro contracts in Redpanda.
+# Discover and register Avro contracts using topic names as subjects.
 set -euo pipefail
 
 SCRIPT_DIR=$(CDPATH=; cd -- "$(dirname -- "$0")" && pwd)
@@ -53,7 +53,7 @@ fi
 for schema_file in "${schema_files[@]}"; do
   [ -f "$schema_file" ] || continue
   schema_dir=$(dirname -- "$(dirname -- "$schema_file")")
-  schema_name=$(basename -- "$schema_dir")
+  directory_name=$(basename -- "$schema_dir")
   version_dir=$(basename -- "$(dirname -- "$schema_file")")
   if [[ ! "$version_dir" =~ ^v([1-9][0-9]*)$ ]]; then
     echo "Invalid schema version directory: $schema_file" >&2
@@ -61,18 +61,18 @@ for schema_file in "${schema_files[@]}"; do
   fi
   version=${BASH_REMATCH[1]}
 
-  # Emit shell-safe, tab-separated metadata; the schema itself remains JSON.
-  metadata=$(python3 - "$schema_file" "$schema_name" "$version" <<'PY'
+  metadata=$(python3 - "$schema_file" "$schema_dir" "$directory_name" "$version" <<'PY'
 import json
 import pathlib
 import re
 import sys
 
-path, directory_name, version = sys.argv[1:]
+path, schema_dir, directory_name, version = sys.argv[1:]
 try:
     document = json.loads(pathlib.Path(path).read_text())
+    meta = json.loads((pathlib.Path(schema_dir) / ".meta.json").read_text())
 except (OSError, json.JSONDecodeError) as exc:
-    raise SystemExit(f"Invalid JSON in {path}: {exc}")
+    raise SystemExit(f"Invalid schema metadata in {path}: {exc}")
 
 if not isinstance(document, dict) or document.get("type") != "record":
     raise SystemExit(f"{path} is not an Avro record")
@@ -82,19 +82,23 @@ if not isinstance(namespace, str) or not namespace:
     raise SystemExit(f"{path} has no namespace")
 if not isinstance(record_name, str) or not record_name:
     raise SystemExit(f"{path} has no record name")
-if re.fullmatch(r"fast-[a-z0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*", directory_name):
+
+configured_name = meta.get("name")
+if isinstance(configured_name, str) and configured_name.startswith("ride."):
+    subject = configured_name
+    topic = configured_name
+elif re.fullmatch(r"fast-[a-z0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*", directory_name):
     domain, event = directory_name.removeprefix("fast-").split("-", 1)
-    subject = directory_name
     topic = f"{domain}.{event.replace('-', '.')}.v{version}"
+    subject = topic
 else:
-    # Legacy schema: use directory name as subject, derive topic from name
     subject = directory_name
     topic = f"{directory_name.replace('-', '.')}.v{version}"
-print("\t".join((namespace, record_name, directory_name, version, subject, topic)))
+print("\t".join((namespace, record_name, subject, topic)))
 PY
   )
 
-  IFS=$'\t' read -r namespace record_name _ version subject topic <<<"$metadata"
+  IFS=$'\t' read -r namespace record_name subject topic <<<"$metadata"
   endpoint="${REGISTRY_URL%/}/subjects/${subject}/versions"
   printf 'schema=%s namespace=%s record=%s version=v%s\n' \
     "$schema_file" "$namespace" "$record_name" "$version"
