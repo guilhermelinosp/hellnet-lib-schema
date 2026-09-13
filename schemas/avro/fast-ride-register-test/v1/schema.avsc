@@ -1,0 +1,11 @@
+{
+  "namespace": "fast.events.ride.v1",
+  "type": "record",
+  "name": "RideRegisterTestV1",
+  "doc": "Published when register test occurs in ride in Fast.",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "rideId", "type": "string" },
+    { "name": "latitude", "type": "double" }
+  ]
+}
