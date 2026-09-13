@@ -85,7 +85,7 @@ generate_avro() {
   fi
 
   avro_name=$(printf '%s\n' "${domain}-${event}" | awk -F- '{for (i = 1; i <= NF; i++) $i = toupper(substr($i, 1, 1)) substr($i, 2)}1' | tr -d ' ')
-  avro_name="${avro_name}V${version}"
+  avro_name="Fast${avro_name}V${version}"
   namespace="fast.events.${domain}.v${version}"
   case "${domain}-${event}" in
     ride-requested) doc="Published when a ride is requested in Fast." ;;
@@ -241,9 +241,25 @@ case "$COMPAT" in
 esac
 
 VERSION=1
-SCHEMA_DIR="schemas/${TYPE}/${NAME}"
 
-# Auto-increment version if dir exists
+# Fast Avro canonical layout:
+# schemas/avro/fast/{domain}/{event}/v{version}
+if [ "$TYPE" = "avro" ] && [[ "$NAME" == fast-* ]]; then
+  FAST_NAME="${NAME#fast-}"
+  DOMAIN="${FAST_NAME%%-*}"
+  EVENT="${FAST_NAME#*-}"
+
+  if [ -z "$DOMAIN" ] || [ -z "$EVENT" ] || [ "$FAST_NAME" = "$DOMAIN" ]; then
+    echo "ERROR: invalid Fast Avro schema name (expected fast-{domain}-{event}): $NAME" >&2
+    exit 1
+  fi
+
+  SCHEMA_DIR="schemas/avro/fast/${DOMAIN}/${EVENT}"
+else
+  SCHEMA_DIR="schemas/${TYPE}/${NAME}"
+fi
+
+# Auto-increment version inside the canonical schema directory
 if [ -d "$SCHEMA_DIR" ]; then
   last=$(ls -1 "$SCHEMA_DIR" 2>/dev/null | grep -E '^v[0-9]+$' | sort -t'v' -k2 -n | tail -1)
   if [ -n "$last" ]; then
@@ -269,10 +285,17 @@ case "$TYPE" in
     ;;
 esac
 
-# Write metadata
+# Write metadata.
+# Fast Avro metadata name is also the stable topic/subject name.
+META_NAME="$NAME"
+if [ "$TYPE" = "avro" ] && [[ "$NAME" == fast-* ]]; then
+  EVENT_TOPIC="${EVENT//-/.}"
+  META_NAME="fast.${DOMAIN}.${EVENT_TOPIC}.v${VERSION}"
+fi
+
 cat > "$SCHEMA_DIR/v${VERSION}/.meta.json" << META
 {
-  "name": "$NAME",
+  "name": "$META_NAME",
   "type": "$TYPE",
   "version": $VERSION,
   "compatibility": "$COMPAT",

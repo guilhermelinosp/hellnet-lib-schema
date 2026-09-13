@@ -3,7 +3,7 @@ name: process-schema-issue
 on:
   workflow_dispatch:
   issues:
-    types: [opened, labeled]
+    types: [opened]
 
 permissions:
   contents: write
@@ -47,11 +47,10 @@ jobs:
           branch="schema/${SCHEMA_NAME}-v${SCHEMA_VERSION}"
           git checkout -b "$branch"
           git add schemas/
-          git config user.name "hellnet-bot"
+          git config user.name "hellnet-actions[bot]"
           git config user.email "bot@hellnet.com.br"
           git commit -m "feat(schema): ${SCHEMA_NAME} v${SCHEMA_VERSION}"
-          git tag --force "schema/${SCHEMA_NAME}/v${SCHEMA_VERSION}"
-          git push origin "$branch" --follow-tags --force
+          git push origin "$branch"
           echo "name=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Open PR
@@ -67,18 +66,6 @@ jobs:
             --base main \
             --head "$BRANCH_NAME" \
             --title "schema: ${SCHEMA_NAME} v${SCHEMA_VERSION}" \
-            --body "Schema generated from issue #${ISSUE_NUMBER}" \
+            --body "Closes #${ISSUE_NUMBER}" \
             --label schema \
-            --repo "$REPO"
-
-      - name: Close issue with PR reference
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH_NAME: ${{ steps.branch.outputs.name }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          pr_url=$(gh pr list --head "$BRANCH_NAME" --json url -q '.[0].url')
-          gh issue close "$ISSUE_NUMBER" \
-            --comment "Schema generated in PR: ${pr_url}" \
             --repo "$REPO"
