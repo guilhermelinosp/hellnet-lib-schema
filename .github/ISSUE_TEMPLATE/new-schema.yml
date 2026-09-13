@@ -7,8 +7,8 @@ body:
     id: name
     attributes:
       label: "Schema name"
-      description: "Convention: hellnet-{domain}-{event}"
-      placeholder: "hellnet-order-created"
+      description: "Convention: Avro Fast uses fast-{domain}-{event}; JSON/Protobuf may use hellnet-{domain}-{event}"
+      placeholder: "fast-ride-requested"
     validations:
       required: true
 

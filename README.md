@@ -1,9 +1,9 @@
 # Hellnet Schema
 
-Centralized schema registry management for event-driven .NET services.
+Centralized event-contract repository and Schema Registry automation for event-driven services.
 
 ```
-Issue (issuer) → Webhook → Schema versioned in repo → Apicurio Registry
+Issue → GitHub Actions → reviewed schema PR → Schema Registry
 ```
 
 ## How it works
@@ -64,27 +64,31 @@ After submitting:
 
 ### Schema storage structure
 
-```
+Fast Avro contracts use the product/domain/event hierarchy:
+
+```text
 schemas/
-├── avro/
-│   └── {schema-name}/
-│       ├── v1/
-│       │   ├── schema.avsc          ← Avro schema
-│       │   └── .meta.json           ← Metadata (version, compatibility)
-│       └── v2/                      ← Next version
-│           ├── schema.avsc
-│           └── .meta.json
-├── json/
-│   └── {schema-name}/
-│       └── v1/
-│           ├── schema.json
-│           └── .meta.json
-└── protobuf/
-    └── {schema-name}/
-        └── v1/
-            ├── schema.proto
-            └── .meta.json
+└── avro/
+    └── fast/
+        └── {domain}/
+            └── {event}/
+                ├── v1/
+                │   ├── schema.avsc
+                │   └── .meta.json
+                └── v2/
+                    ├── schema.avsc
+                    └── .meta.json
 ```
+
+Example:
+
+```text
+schemas/avro/fast/ride/requested/v1/schema.avsc
+schemas/avro/fast/ride/accepted/v1/schema.avsc
+schemas/avro/fast/ride/completed/v1/schema.avsc
+```
+
+JSON Schema and Protobuf keep the generic layout `schemas/{format}/{schema-name}/v{version}`.
 
 ### Example schemas
 
@@ -96,29 +100,37 @@ schemas/
 
 ## Schema naming convention
 
-Non-Fast schemas use the existing generic convention:
+Fast Avro contracts follow one canonical mapping:
 
-```
-hellnet-{domain}-{event}
-```
-
-Examples: `hellnet-order-created`, `hellnet-invoice-paid`, `hellnet-stock-updated`
-
-Fast Avro schemas use the event contract convention below. The domain is the
-first segment after `fast-`; the event is the remaining hyphen-separated text.
-
-```
-schema name: fast-{domain}-{event}
-namespace:   fast.events.{domain}.v{version}
-record name: {EventName}V{version}
+```text
+Issue schema name: fast-{domain}-{event}
+Repository path:   schemas/avro/fast/{domain}/{event}/v{version}
+Metadata name:     fast.{domain}.{event-as-dots}.v{version}
+Avro namespace:    fast.events.{domain}.v{version}
+Avro record:       Fast{Domain}{Event}V{version}
 ```
 
-For example, `fast-ride-requested` v1 uses namespace
-`fast.events.ride.v1` and record name `RideRequestedV1`.
+Examples:
+
+```text
+fast-ride-requested
+→ schemas/avro/fast/ride/requested/v1
+→ fast.ride.requested.v1
+→ fast.events.ride.v1
+→ FastRideRequestedV1
+
+fast-driver-location-updated
+→ schemas/avro/fast/driver/location-updated/v1
+→ fast.driver.location.updated.v1
+→ fast.events.driver.v1
+→ FastDriverLocationUpdatedV1
+```
+
+The validator enforces these relationships, so a PR cannot place a Fast Avro contract in a flat `schemas/avro/fast-*` directory.
 
 ## Git tags
 
-Each schema version creates a tag:
+Each merged schema version receives an immutable tag after it reaches `main`:
 
 ```
 schema/hellnet-order-created/v1
@@ -130,9 +142,9 @@ schema/hellnet-stock-updated/v1
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `issue-schema.yml` | Issue opened with `schema` label | Generates schema file, commits, tags |
-| `validate-pr.yml` | PR with changes in `schemas/` | Validates syntax of all schemas |
-| `register-apicurio.yml` | Push to `main` with schema changes | Registers schema in Apicurio Registry |
+| `issue-schema.yml` | Issue opened with `schema` label | Generates the schema branch and PR |
+| `validate-pr.yml` | PR with changes in `schemas/` | Validates syntax, metadata and canonical layout |
+| `tag-schema.yml` | Schema changes merged to `main` | Creates missing immutable schema tags |
 
 ## Configuration
 
@@ -198,13 +210,13 @@ topics distinct:
 
 | Schema directory | Subject | Topic |
 |---|---|---|
-| `fast-ride-requested/v1` | `fast-ride-requested` | `ride.requested.v1` |
-| `fast-ride-accepted/v1` | `fast-ride-accepted` | `ride.accepted.v1` |
+| `fast/ride/requested/v1` | `fast.ride.requested.v1` | `fast.ride.requested.v1` |
+| `fast/ride/accepted/v1` | `fast.ride.accepted.v1` | `fast.ride.accepted.v1` |
 | `hellnet-order-created/v1` | `hellnet-order-created` | `hellnet.order.created.v1` |
 
-Only directories matching `fast-{domain}-{event}` are accepted. Event names may
-contain additional hyphen-separated words, which become dot-separated topic
-segments. A dry-run prints the schema, subject, endpoint, and topic without a
+Fast Avro directories follow `fast/{domain}/{event}/v{version}`. Event names may
+contain additional hyphen-separated words; metadata converts those event segments
+to dots for the stable topic/subject name. A dry-run prints the schema, subject, endpoint, and topic without a
 write. Registration is idempotent: submitting the same schema to the same
 subject lets the registry deduplicate it. Schema Registry synchronization is
 separate from publishing events; applications publish real payloads later using
