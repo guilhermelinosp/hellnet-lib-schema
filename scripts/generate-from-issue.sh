@@ -70,10 +70,11 @@ generate_avro() {
   local name="$1" fields="$2" output="$3" version="$4"
   local fast_name domain event avro_name namespace doc
 
-  # Fast Avro names are deliberately stricter than the shared JSON/Protobuf
-  # name validation: the name is part of the public contract.
+  # Avro schemas are Fast-only: the name is part of the public contract and
+  # follows the fast-{domain}-{event} convention. JSON and Protobuf may use
+  # the generic hellnet-{domain}-{event} convention instead.
   if [[ ! "$name" =~ ^fast-[a-z0-9]+-[a-z0-9]+([a-z0-9-]*[a-z0-9])?$ ]]; then
-    echo "ERROR: invalid Fast Avro schema name (expected fast-{domain}-{event}): $name" >&2
+    echo "ERROR: Avro schemas must use the fast-{domain}-{event} convention (got: $name). Use fast-* for Avro, or switch to JSON/Protobuf for hellnet-* names." >&2
     exit 1
   fi
   fast_name="${name#fast-}"
