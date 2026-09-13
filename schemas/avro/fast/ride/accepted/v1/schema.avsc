@@ -1,7 +1,7 @@
 {
   "namespace": "fast.events.ride.v1",
   "type": "record",
-  "name": "fast_ride_accepted",
+  "name": "FastRideAcceptedV1",
   "doc": "Published when a driver accepts a ride in Fast.",
   "fields": [
     { "name": "eventId", "type": "string" },
