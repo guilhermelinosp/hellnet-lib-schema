@@ -39,7 +39,7 @@ Open a new issue and fill the [template](.github/ISSUE_TEMPLATE/new-schema.yml):
 
 ```yaml
 # What you fill in the issue:
-Schema name: hellnet-order-created
+Schema name: fast-order-created
 Format: avro
 Compatibility: BACKWARD
 Fields:
@@ -56,11 +56,10 @@ Fields:
 
 After submitting:
 
-1. Webhook triggers → schema is generated and committed
-2. Tag created: `schema/hellnet-order-created/v1`
-3. Issue is closed with reference to the schema file
-4. PR is created automatically (or you create one to review)
-5. On merge to `main`, schema is registered in Apicurio
+1. GitHub Action generates the schema, creates the branch and opens a **Pull Request**
+2. Team reviews the PR (schema diff)
+3. When the PR is merged to `main`, the schema is registered in the Schema Registry
+4. `Closes #<issue>` in the PR links and closes the issue automatically
 
 ### Schema storage structure
 
@@ -94,7 +93,7 @@ JSON Schema and Protobuf keep the generic layout `schemas/{format}/{schema-name}
 
 | Schema | Format | File |
 |--------|--------|------|
-| Order Created | Avro | `schemas/avro/hellnet-order-created/v1/schema.avsc` |
+| Order Created | Avro (Fast) | `schemas/avro/fast/order/created/v1/schema.avsc` |
 | Invoice Event | JSON | `schemas/json/hellnet-invoice-event/v1/schema.json` |
 | Stock Updated | Protobuf | `schemas/protobuf/hellnet-stock-updated/v1/schema.proto` |
 
@@ -133,7 +132,7 @@ The validator enforces these relationships, so a PR cannot place a Fast Avro con
 Each merged schema version receives an immutable tag after it reaches `main`:
 
 ```
-schema/hellnet-order-created/v1
+schema/fast-ride-requested/v1
 schema/hellnet-invoice-event/v2
 schema/hellnet-stock-updated/v1
 ```
@@ -178,7 +177,7 @@ schema/hellnet-stock-updated/v1
 ./scripts/register.sh \
   --registry "\$APICURIO_URL" \
   --group default \
-  --schema schemas/avro/hellnet-order-created/v1
+  --schema schemas/avro/fast/ride/requested/v1
 ```
 
 ### Redpanda Schema Registry
@@ -212,7 +211,7 @@ topics distinct:
 |---|---|---|
 | `fast/ride/requested/v1` | `fast.ride.requested.v1` | `fast.ride.requested.v1` |
 | `fast/ride/accepted/v1` | `fast.ride.accepted.v1` | `fast.ride.accepted.v1` |
-| `hellnet-order-created/v1` | `hellnet-order-created` | `hellnet.order.created.v1` |
+| `fast/driver/location-updated/v1` | `fast.driver.location.updated.v1` | `fast.driver.location.updated.v1` |
 
 Fast Avro directories follow `fast/{domain}/{event}/v{version}`. Event names may
 contain additional hyphen-separated words; metadata converts those event segments
