@@ -1,0 +1,11 @@
+{
+  "namespace": "fast.events.issuer.v1",
+  "type": "record",
+  "name": "FastIssuerHealthV1",
+  "doc": "Published when health occurs in issuer in Fast.",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "service", "type": "string" },
+    { "name": "checkedAt", "type": "string" }
+  ]
+}
