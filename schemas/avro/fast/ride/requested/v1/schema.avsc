@@ -1,0 +1,17 @@
+{
+  "namespace": "fast.events.ride.v1",
+  "type": "record",
+  "name": "FastRideRequestedV1",
+  "doc": "Published when a ride is requested in Fast.",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "eventVersion", "type": "int", "default": 1 },
+    { "name": "occurredAt", "type": "long" },
+    { "name": "rideId", "type": "string" },
+    { "name": "riderId", "type": "string" },
+    { "name": "pickupLatitude", "type": "double" },
+    { "name": "pickupLongitude", "type": "double" },
+    { "name": "destinationLatitude", "type": "double" },
+    { "name": "destinationLongitude", "type": "double" }
+  ]
+}
