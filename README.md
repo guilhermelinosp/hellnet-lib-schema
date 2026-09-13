@@ -9,27 +9,20 @@ Issue → GitHub Actions → reviewed schema PR → Schema Registry
 ## How it works
 
 ```
-Dev ──abre issue──► Issue Template ──webhook──► Gera schema ──PR──► Review ──merge──► Apicurio Registry
-                        ▲                                                        │
-                        └────────────────── git tag ─────────────────────────────┘
+Dev ──abre issue──► Issue Template ──Issue event──► Gera schema ──PR──► Review ──merge──► main
+                                                                                             │
+                                                                                         tag-schema
 ```
 
-### Fluxo via Issue (webhook)
+### Fluxo via Issue
 
 1. Dev abre issue com template "New Schema"
 2. GitHub Action `process-schema-issue` captura (`issues: opened`)
 3. Script `generate-from-issue.sh` gera o schema no formato escolhido
 4. Action cria branch, commita o schema, e abre um **Pull Request**
 5. Time revisa o PR (diff do schema)
-6. Ao merge na `main`, workflow `register-apicurio`:
-   - Valida compatibilidade com versão anterior
-   - Registra no Apicurio Registry
-   - Cria tag `schema/{nome}/v{versao}`
-
-1. **Dev opens an Issue** using the "New Schema" template
-2. **GitHub Action** captures the issue, generates the schema file, commits and tags
-3. **On merge** to `main`, schema is registered in Apicurio Registry automatically
-4. **Hellnet.Kafka** consumes the schema from Registry to serialize/deserialize messages
+6. Ao merge na `main`, `tag-schema.yml` cria a tag imutável `schema/{nome}/v{versao}`
+7. A sincronização com um Schema Registry é feita separadamente, pelo processo de registro correspondente
 
 ## Quick Start
 
@@ -58,8 +51,8 @@ After submitting:
 
 1. GitHub Action generates the schema, creates the branch and opens a **Pull Request**
 2. Team reviews the PR (schema diff)
-3. When the PR is merged to `main`, the schema is registered in the Schema Registry
-4. `Closes #<issue>` in the PR links and closes the issue automatically
+3. When the PR is merged to `main`, `tag-schema.yml` creates the immutable schema tag
+4. `Closes #<issue>` links the issue and closes it when the PR is merged
 
 ### Schema storage structure
 
@@ -133,7 +126,8 @@ Each merged schema version receives an immutable tag after it reaches `main`:
 
 ```
 schema/fast-ride-requested/v1
-schema/hellnet-invoice-event/v2
+schema/fast-ride-completed/v1
+schema/hellnet-invoice-event/v1
 schema/hellnet-stock-updated/v1
 ```
 
@@ -153,6 +147,8 @@ schema/hellnet-stock-updated/v1
 |--------|-----------|
 | `APICURIO_URL` | Apicurio Registry endpoint (ex: `http://192.168.1.254:8085`) |
 | `APICURIO_TOKEN` | Token de autenticação (se exigido) |
+| `HELLNET_ACTIONS_CLIENT_ID` | Client ID do GitHub App `hellnet-actions` |
+| `HELLNET_ACTIONS_PRIVATE_KEY` | Private Key do App, armazenada como secret criptografado |
 
 ### Compatibility levels
 
