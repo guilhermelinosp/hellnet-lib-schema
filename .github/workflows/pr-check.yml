@@ -11,13 +11,13 @@ permissions:
 
 jobs:
   merge-check:
-    uses: guilhermelinosp/templates/.github/workflows/merge-check.yml@e7d093b460c1e25f16121d509eefcbb597612c95 # main
+    uses: guilhermelinosp/templates/.github/workflows/merge-check.yml@9a3e1c923824fbd71b5dad45976c6e66ba2a1a01 # main
 
   gitleaks:
-    uses: guilhermelinosp/templates/.github/workflows/gitleaks.yml@e7d093b460c1e25f16121d509eefcbb597612c95 # main
+    uses: guilhermelinosp/templates/.github/workflows/gitleaks.yml@9a3e1c923824fbd71b5dad45976c6e66ba2a1a01 # main
 
   labeler:
-    uses: guilhermelinosp/templates/.github/workflows/labeler.yml@e7d093b460c1e25f16121d509eefcbb597612c95 # main
+    uses: guilhermelinosp/templates/.github/workflows/labeler.yml@9a3e1c923824fbd71b5dad45976c6e66ba2a1a01 # main
 
   policy:
-    uses: guilhermelinosp/templates/.github/workflows/pr-policy.yml@df74d94727dface3aa3aa9011ab02b8b037f90ea # integrated templates main
+    uses: guilhermelinosp/templates/.github/workflows/pr-policy.yml@9a3e1c923824fbd71b5dad45976c6e66ba2a1a01 # integrated templates main
