@@ -15,19 +15,19 @@ permissions:
 
 jobs:
   merge-check:
-    uses: guilhermelinosp/templates/.github/workflows/merge-check.yml@745ef1ca8288cd320b0b4dcf1485e34003945c79
+    uses: guilhermelinosp/templates/.github/workflows/merge-check.yml@8f299961846cf1d0cbf7129a99ea6c3095ec3abd
 
   gitleaks:
-    uses: guilhermelinosp/templates/.github/workflows/gitleaks.yml@745ef1ca8288cd320b0b4dcf1485e34003945c79
+    uses: guilhermelinosp/templates/.github/workflows/gitleaks.yml@8f299961846cf1d0cbf7129a99ea6c3095ec3abd
 
   labeler:
-    uses: guilhermelinosp/templates/.github/workflows/labeler.yml@745ef1ca8288cd320b0b4dcf1485e34003945c79
+    uses: guilhermelinosp/templates/.github/workflows/labeler.yml@8f299961846cf1d0cbf7129a99ea6c3095ec3abd
     with:
       app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
     secrets: inherit
 
   policy:
-    uses: guilhermelinosp/templates/.github/workflows/pr-policy.yml@745ef1ca8288cd320b0b4dcf1485e34003945c79
+    uses: guilhermelinosp/templates/.github/workflows/pr-policy.yml@8f299961846cf1d0cbf7129a99ea6c3095ec3abd
 
   pr-gate:
     if: always()
