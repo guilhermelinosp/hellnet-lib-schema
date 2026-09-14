@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -22,6 +22,7 @@ jobs:
   release:
     name: release
     needs: validate
-    uses: guilhermelinosp/templates/.github/workflows/release.yml@9aa28e4932048b724e165f169963643e8c4bcd69 # main
+    uses: ./.github/workflows/release.yml
     permissions:
-      contents: write
+      contents: read
+    secrets: inherit

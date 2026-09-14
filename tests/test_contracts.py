@@ -15,6 +15,7 @@ import contracts as c
 import evolution as e
 import process_issue as p
 import registry_check as r
+import release as rel
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -412,6 +413,21 @@ class RegistryTests(unittest.TestCase):
         with patch.object(r, "request", side_effect=ValueError("Registry HTTP 401")):
             with self.assertRaisesRegex(ValueError, "401"):
                 r.check("https://registry.example", "default", REPO / "schemas/avro/fast/ride/requested/v1")
+
+
+class ReleaseTests(unittest.TestCase):
+    def test_first_release(self):
+        self.assertEqual(rel.next_version([], []), "v1.0.0")
+
+    def test_feature_and_patch_release(self):
+        self.assertEqual(rel.next_version(["v1.6.0"], ["feat: improve contract"]), "v1.7.0")
+        self.assertEqual(rel.next_version(["v1.6.0"], ["fix: typo"]), "v1.6.1")
+
+    def test_beta_release(self):
+        self.assertEqual(rel.next_version(["v1.7.0-beta.2"], []), "v1.7.0-beta.3")
+
+    def test_invalid_tags_ignored_and_no_major_bump(self):
+        self.assertEqual(rel.next_version(["not-a-version", "v1.6.0"], ["refactor!: internal", "BREAKING CHANGE: none"]), "v1.6.1")
 
 
 if __name__ == "__main__":

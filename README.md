@@ -142,10 +142,24 @@ schema/hellnet-stock-updated/v1
 | `codeql.yml` | Push to `main`, PR or manual run | Analyzes GitHub Actions workflows |
 | `security.yml` | PR or manual run | Runs Gitleaks and Trivy security scans |
 | `tag-schema.yml` | Schema changes merged to `main` | Creates missing immutable schema tags |
+| `report-pr.yml` | Completion of validator workflows | Updates one bot comment, check and relevant labels |
+| `release.yml` | Main branch after validation | Creates immutable repository semver tag and GitHub Release as the App |
 
 This repository contains Avro, JSON Schema and Protobuf contracts plus Python tooling with shell entry points.
 CI does not install Go or run Go builds, tests, vet, GoSec or govulncheck.
 Repository semver releases are separate from immutable per-contract schema tags.
+
+`hellnet-actions` is the reusable automation boundary. The composite action
+`.github/actions/hellnet-app-token` accepts only the permissions required by its
+caller and exposes the installation token, App slug and numeric bot ID. Future
+repositories can reuse this component or move it unchanged into the shared
+`guilhermelinosp/templates` repository; the local workflows already keep the
+contract explicit and do not grant broad permissions by default.
+
+The read-only validator workflows intentionally use the standard `GITHUB_TOKEN`
+for checkout, CodeQL SARIF upload and existing reusable checks. They do not receive
+the App private key. Privileged reporting, PR creation, comments, labels, tags and
+releases use a least-privilege installation token and run only in trusted contexts.
 
 ## Configuration
 
