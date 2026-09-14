@@ -143,7 +143,7 @@ work. Validate those separately in the intended environment.
 `release.yml` use the `hellnet-actions` installation token for their write
 operations. The App slug and numeric user ID are resolved dynamically; automatic
 tags use `hellnet-actions[bot]` and its `ID+slug[bot]@users.noreply.github.com`
-address. No workflow stores `bot@hellnet.com.br` as the primary identity.
+address. No workflow stores a legacy custom address as the primary identity.
 
 `validate-pr.yml`, `pr-check.yml`, `security.yml` and `codeql.yml` remain
 read-only/native validator workflows. They use `GITHUB_TOKEN` only for checkout,
