@@ -174,6 +174,76 @@ PY
   fi
 }
 
+validate_fast_avro_layout() {
+  if ! python3 - "$SCHEMAS_DIR" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+schemas_root = Path(sys.argv[1])
+avro_root = schemas_root / "avro"
+errors = []
+
+for path in sorted(avro_root.glob("fast-*")):
+    if path.is_dir():
+        errors.append(
+            f"{path}: flat Fast Avro directories are invalid; use "
+            "schemas/avro/fast/{domain}/{event}/v{version}"
+        )
+
+fast_root = avro_root / "fast"
+if fast_root.is_dir():
+    for path in sorted(p for p in fast_root.rglob("*") if p.is_file()):
+        parts = path.relative_to(schemas_root).parts
+        valid = (
+            len(parts) == 6
+            and parts[:2] == ("avro", "fast")
+            and re.fullmatch(r"[a-z0-9]+", parts[2])
+            and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", parts[3])
+            and re.fullmatch(r"v[1-9][0-9]*", parts[4])
+            and parts[5] in ("schema.avsc", ".meta.json")
+        )
+        if not valid:
+            errors.append(
+                f"{path}: invalid Fast Avro path; use "
+                "schemas/avro/fast/{domain}/{event}/v{version}/"
+                "{schema.avsc|.meta.json}"
+            )
+
+if errors:
+    raise SystemExit("\n".join(errors))
+PY
+  then
+    HAS_ERROR=true
+  fi
+}
+
+validate_schema_metadata_pairs() {
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    meta="$(dirname "$file")/.meta.json"
+    if [[ ! -f "$meta" ]]; then
+      fail "$file: missing sibling .meta.json"
+    fi
+  done < <(find "$SCHEMAS_DIR" -type f \( -name 'schema.avsc' -o -name 'schema.json' -o -name 'schema.proto' \) 2>/dev/null | LC_ALL=C sort)
+
+  while IFS= read -r meta; do
+    [[ -n "$meta" ]] || continue
+    schema_dir="$(dirname "$meta")"
+    schema_count=0
+    for candidate in schema.avsc schema.json schema.proto; do
+      if [[ -f "$schema_dir/$candidate" ]]; then
+        schema_count=$((schema_count + 1))
+      fi
+    done
+    if [[ "$schema_count" -eq 0 ]]; then
+      fail "$meta: missing sibling schema file"
+    elif [[ "$schema_count" -gt 1 ]]; then
+      fail "$meta: expected exactly one sibling schema file"
+    fi
+  done < <(find "$SCHEMAS_DIR" -type f -name '.meta.json' 2>/dev/null | LC_ALL=C sort)
+}
+
 echo "=== Validating Avro ==="
 while IFS= read -r file; do
   [[ -n "$file" ]] || continue
@@ -199,6 +269,8 @@ while IFS= read -r file; do
 done < <(find "$SCHEMAS_DIR/protobuf" -type f -name 'schema.proto' 2>/dev/null | LC_ALL=C sort)
 
 echo "=== Validating metadata and layout ==="
+validate_fast_avro_layout
+validate_schema_metadata_pairs
 while IFS= read -r file; do
   [[ -n "$file" ]] || continue
   echo "Validating: $file"

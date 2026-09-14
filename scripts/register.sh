@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Register a schema version in Apicurio Registry
-# Usage: ./register.sh --registry http://localhost:8085 --group default --schema schemas/avro/hellnet-order-created/v1
+# Usage: ./register.sh --registry http://localhost:8085 --group default --schema schemas/avro/fast/ride/requested/v1
 
 REGISTRY=""
 GROUP="default"
