@@ -12,4 +12,3 @@ jobs:
     with:
       app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
     secrets: inherit
-    secrets: inherit
