@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   report:
-    uses: guilhermelinosp/templates/.github/workflows/pr-report.yml@df74d94727dface3aa3aa9011ab02b8b037f90ea # integrated templates main
+    uses: guilhermelinosp/templates/.github/workflows/pr-report.yml@745ef1ca8288cd320b0b4dcf1485e34003945c79
     with:
       app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
     secrets: inherit
