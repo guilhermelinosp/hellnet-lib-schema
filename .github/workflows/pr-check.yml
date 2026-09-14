@@ -2,7 +2,7 @@ name: pr-check
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -11,11 +11,28 @@ permissions:
 
 jobs:
   merge-check:
-    uses: guilhermelinosp/templates/.github/workflows/merge-check.yml@9aa28e4932048b724e165f169963643e8c4bcd69 # main
+    uses: guilhermelinosp/templates/.github/workflows/merge-check.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
 
   gitleaks:
-    uses: guilhermelinosp/templates/.github/workflows/gitleaks.yml@e7d093b460c1e25f16121d509eefcbb597612c95 # main
+    uses: guilhermelinosp/templates/.github/workflows/gitleaks.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
 
   labeler:
-    uses: guilhermelinosp/templates/.github/workflows/labeler.yml@e7d093b460c1e25f16121d509eefcbb597612c95 # main
+    uses: guilhermelinosp/templates/.github/workflows/labeler.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
+    with:
+      app-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+    secrets: inherit
 
+  policy:
+    uses: guilhermelinosp/templates/.github/workflows/pr-policy.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
+
+  report:
+    if: always()
+    needs: [merge-check, gitleaks, labeler, policy]
+    uses: guilhermelinosp/templates/.github/workflows/pr-report.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
+    with:
+      app-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+      security: ${{ needs.gitleaks.result }}
+      policy: ${{ needs.policy.result }}
+      shell: ${{ needs.merge-check.result }}
+      tests: ${{ needs.merge-check.result }}
+    secrets: inherit
