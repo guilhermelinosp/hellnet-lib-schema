@@ -17,7 +17,10 @@ permissions:
 
 jobs:
   create-pr:
-    uses: guilhermelinosp/templates/.github/workflows/auto-pr.yml@f1f6b00418bcdce7fb2357b12211f0dfb61783cc # templates PR #152
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: guilhermelinosp/templates/.github/workflows/auto-pr.yml@df74d94727dface3aa3aa9011ab02b8b037f90ea # integrated templates main
     with:
       app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
     secrets: inherit
