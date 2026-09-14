@@ -1,71 +1,14 @@
-name: repository release
+name: release
 
 on:
   workflow_call:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: repository-release-${{ github.ref }}
-  cancel-in-progress: false
+    outputs:
+      version:
+        value: ${{ jobs.release.outputs.version }}
 
 jobs:
   release:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: main
-          fetch-depth: 0
-          token: ${{ github.token }}
-      - name: Create least-privilege App token
-        id: app-token
-        uses: ./.github/actions/hellnet-app-token
-        with:
-          client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
-          private-key: ${{ secrets.HELLNET_ACTIONS_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          permission-contents: write
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: main
-          fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
-      - name: Calculate immutable repository tag
-        id: version
-        run: echo "tag=$(python3 scripts/release.py)" >> "$GITHUB_OUTPUT"
-      - name: Configure bot tag identity
-        env:
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          APP_USER_ID: ${{ steps.app-token.outputs.user-id }}
-        run: |
-          set -euo pipefail
-          git config user.name "${APP_SLUG}[bot]"
-          git config user.email "${APP_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
-      - name: Create immutable tag
-        env:
-          TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          if git show-ref --verify --quiet "refs/tags/$TAG"; then
-            target="$(git rev-list -n 1 "refs/tags/$TAG")"
-            current="$(git rev-parse HEAD)"
-            [ "$target" = "$current" ] || { echo "ERROR: $TAG already points to another commit" >&2; exit 1; }
-            exit 0
-          fi
-          git tag -a "$TAG" -m "Release $TAG" HEAD
-          git push origin "refs/tags/$TAG"
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          REPOSITORY: ${{ github.repository }}
-          TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          if ! gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$TAG" --repo "$REPOSITORY" --title "$TAG" --generate-notes --latest
-          fi
+    uses: guilhermelinosp/templates/.github/workflows/release.yml@9aa4a279f308556891c0e24ae61d26c33e36ed3e # templates PR #152
+    with:
+      app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+    secrets: inherit

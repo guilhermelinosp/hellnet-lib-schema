@@ -19,3 +19,5 @@ jobs:
   labeler:
     uses: guilhermelinosp/templates/.github/workflows/labeler.yml@e7d093b460c1e25f16121d509eefcbb597612c95 # main
 
+  policy:
+    uses: guilhermelinosp/templates/.github/workflows/pr-policy.yml@9aa4a279f308556891c0e24ae61d26c33e36ed3e # templates PR #152

@@ -334,6 +334,29 @@ class PathBoundaryTests(unittest.TestCase):
 
 
 class IssueTests(unittest.TestCase):
+    def test_generated_commit_uses_api_without_custom_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "schemas/new/schema.avsc"
+            path.parent.mkdir(parents=True)
+            path.write_text('{"type":"record","name":"Event","fields":[]}\n')
+            responses = [{"tree": {"sha": "base-tree"}}, {"sha": "blob"}, {"sha": "tree"},
+                         {"sha": "commit"}, {"ref": "refs/heads/schema/issue-12"},
+                         {"commit": {"verification": {"verified": True}}}]
+            with patch.dict(os.environ, {"GH_TOKEN": "test-token"}), patch.object(p, "api_request",
+                                                                                       side_effect=responses) as request:
+                old_cwd = Path.cwd()
+                try:
+                    os.chdir(root)
+                    self.assertEqual(p.create_verified_commit("owner/repo", "schema/issue-12", "base",
+                                                              ["schemas/new/schema.avsc"], "feat: generated",
+                                                              "test-app"), "commit")
+                finally:
+                    os.chdir(old_cwd)
+            commit_payload = request.call_args_list[3].args[2]
+            self.assertNotIn("author", commit_payload)
+            self.assertNotIn("committer", commit_payload)
+
     def test_existing_open_and_merged_prs_reused(self):
         for state in ("OPEN", "MERGED"):
             pr = {"body": "Closes #12", "state": state, "url": "https://github.com/owner/repo/pull/1"}
