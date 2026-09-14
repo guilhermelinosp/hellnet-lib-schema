@@ -6,33 +6,31 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
-from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 
 
 def api(token: str, path: str, method: str = "GET", payload: dict | None = None) -> dict:
-    body = None if payload is None else json.dumps(payload).encode()
-    request = Request(
-        f"https://api.github.com/{path.lstrip('/')}",
-        data=body,
-        method=method,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {token}",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-            "User-Agent": "hellnet-actions",
-        },
+    """Call one allowlisted GitHub API path through gh without shell interpolation."""
+    if not re.fullmatch(r"repos/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.:/-]+)?", path):
+        raise ValueError("invalid GitHub API path")
+    command = ["gh", "api", path]
+    request_body = None
+    if method != "GET":
+        command.extend(["--method", method, "--input", "-"])
+        request_body = json.dumps(payload or {})
+    result = subprocess.run(
+        command,
+        input=request_body,
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    try:
-        with urlopen(request) as response:
-            return json.load(response)
-    except HTTPError as exc:
-        detail = exc.read().decode("utf-8", "replace")
-        raise RuntimeError(f"GitHub API {method} {path} failed ({exc.code}): {detail}") from exc
+    if result.returncode != 0:
+        raise RuntimeError(f"GitHub API {method} {path} failed: {result.stderr.strip()}")
+    return json.loads(result.stdout)
 
 
 def git(*args: str) -> str:
