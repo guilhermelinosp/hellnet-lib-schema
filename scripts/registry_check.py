@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from contracts import FILES, MODES, read_json, require, validate_document
+from contracts import FILES, MODES, confined_path, read_json, require, validate_document
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -31,10 +31,11 @@ def check(registry, group, directory):
     parsed = urllib.parse.urlsplit(registry)
     require(parsed.scheme in {"http", "https"} and parsed.netloc and not parsed.query and not parsed.fragment
             and not parsed.username, "invalid Registry base URL")
-    directory = Path(directory)
-    meta = read_json(directory / ".meta.json")
+    root = Path.cwd() / "schemas"
+    directory = confined_path(directory, root)
+    meta = read_json(confined_path(directory / ".meta.json", root))
     require(meta.get("type") in FILES and meta.get("compatibility") in MODES, "invalid metadata")
-    file = directory / FILES[meta["type"]]
+    file = confined_path(directory / FILES[meta["type"]], root)
     validate_document(file, meta["type"])
     artifact = (registry.rstrip("/") + "/apis/registry/v2/groups/" + urllib.parse.quote(group, safe="")
                 + "/artifacts/" + urllib.parse.quote(meta["name"], safe=""))

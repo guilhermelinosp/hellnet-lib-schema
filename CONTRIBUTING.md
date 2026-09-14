@@ -23,6 +23,11 @@ the same suite. No credentials, running Registry, Kafka broker, Go module, conta
 or generated application code are needed. Tests use temporary repositories and
 mock GitHub/Registry responses; they never create real Issues, PRs or artifacts.
 
+Run commands from the checkout root. CLI schema roots must resolve inside the
+current directory; Registry checks accept only paths inside its `schemas/` tree.
+Symlinks cannot escape these boundaries. `--base` accepts only a full commit SHA,
+`main` or `origin/main`, never arbitrary revision expressions or Git options.
+
 ## Issue fields
 
 The New Schema form accepts a YAML list of field mappings. The parser reads

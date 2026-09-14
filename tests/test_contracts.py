@@ -203,7 +203,7 @@ class ContractTests(unittest.TestCase):
     def test_shell_cli_output(self):
         env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"])
         result = subprocess.run(["bash", str(REPO / "scripts/generate-from-issue.sh"), "-", "--root", str(self.root)],
-                                input=issue(), text=True, capture_output=True, env=env, check=True)
+                                input=issue(), text=True, capture_output=True, env=env, check=True, cwd=self.tmp.name)
         self.assertEqual({line.split("=", 1)[0] for line in result.stdout.splitlines()}, {"NAME", "TYPE", "VERSION", "PATH"})
 
 
@@ -305,8 +305,31 @@ class HistoryTests(unittest.TestCase):
             e.protect_history(self.repo, self.base)
 
     def test_unknown_base_fails_closed(self):
-        with self.assertRaises(subprocess.CalledProcessError):
+        with self.assertRaises(ValueError):
             e.protect_history(self.repo, "not-a-ref")
+
+    def test_base_option_injection_rejected(self):
+        with self.assertRaises(ValueError):
+            e.protect_history(self.repo, "--output=/tmp/not-a-revision")
+
+
+class PathBoundaryTests(unittest.TestCase):
+    def test_path_escape_and_symlink_escape_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            boundary = Path(tmp) / "inside"
+            boundary.mkdir()
+            outside = Path(tmp) / "outside"
+            outside.mkdir()
+            (boundary / "link").symlink_to(outside, target_is_directory=True)
+            for path in (boundary / "../outside", boundary / "link/file", outside):
+                with self.subTest(path=path), self.assertRaises(ValueError):
+                    c.confined_path(path, boundary)
+
+    def test_registry_path_escape_stops_before_network(self):
+        with patch.object(r, "request") as request:
+            with self.assertRaises(ValueError):
+                r.check("https://registry.example", "default", Path.cwd().parent)
+            request.assert_not_called()
 
 
 class IssueTests(unittest.TestCase):

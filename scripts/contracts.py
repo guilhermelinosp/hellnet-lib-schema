@@ -31,6 +31,15 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def confined_path(path, boundary):
+    """Resolve symlinks and dot segments before checking the filesystem boundary."""
+    boundary = Path(boundary).resolve()
+    candidate = Path(path).resolve()
+    if not candidate.is_relative_to(boundary):
+        raise ValueError(f"path must stay inside {boundary}")
+    return candidate
+
+
 def unique_pairs(pairs):
     result = {}
     for key, value in pairs:
@@ -376,6 +385,7 @@ def main():
     gen.add_argument("--root", default="schemas", type=Path)
     args = parser.parse_args()
     try:
+        args.root = confined_path(args.root, Path.cwd())
         if args.command == "validate":
             validate_tree(args.root)
         else:

@@ -3,16 +3,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 from pathlib import Path
 
 from avro.compatibility import ReaderWriterCompatibilityChecker, SchemaCompatibilityType
-from contracts import require, validate_contract, validate_tree
+from contracts import confined_path, require, validate_contract, validate_tree
 
 
 def protect_history(repo, base):
     """Compare the checkout to the PR base, not only commits in the PR branch."""
     repo = Path(repo)
+    if not re.fullmatch(r"(?:[0-9a-fA-F]{40}|main|origin/main)", base):
+        raise ValueError("base must be a full commit SHA, main or origin/main")
     resolved = subprocess.check_output(
         ["git", "rev-parse", "--verify", "--end-of-options", f"{base}^{{commit}}"], cwd=repo, text=True).strip()
     entries = subprocess.check_output(
@@ -195,6 +198,7 @@ def main():
     parser.add_argument("--base", help="PR base commit; published files must remain byte-identical")
     args = parser.parse_args()
     try:
+        args.root = confined_path(args.root, Path.cwd())
         if args.base:
             protect_history(Path.cwd(), args.base)
         validate_tree(args.root)
