@@ -39,7 +39,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-        run: echo "user-id=$(gh api \"/users/${APP_SLUG}[bot]\" --jq .id)" >> "$GITHUB_OUTPUT"
+        run: |
+          user_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
 
       - name: Parse issue and generate schema
         id: generate
@@ -49,10 +51,12 @@ jobs:
           chmod +x scripts/generate-from-issue.sh
           result=$(./scripts/generate-from-issue.sh "$ISSUE_BODY")
           echo "$result"
-          echo "name=$(echo "$result" | grep '^NAME=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
-          echo "type=$(echo "$result" | grep '^TYPE=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
-          echo "version=$(echo "$result" | grep '^VERSION=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
-          echo "path=$(echo "$result" | grep '^PATH=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+          {
+            echo "name=$(echo "$result" | grep '^NAME=' | cut -d= -f2)"
+            echo "type=$(echo "$result" | grep '^TYPE=' | cut -d= -f2)"
+            echo "version=$(echo "$result" | grep '^VERSION=' | cut -d= -f2)"
+            echo "path=$(echo "$result" | grep '^PATH=' | cut -d= -f2)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create branch
         id: branch

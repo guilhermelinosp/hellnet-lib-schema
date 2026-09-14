@@ -136,8 +136,15 @@ schema/hellnet-stock-updated/v1
 | Workflow | Trigger | Action |
 |----------|---------|--------|
 | `issue-schema.yml` | Issue opened with `schema` label | Generates the schema branch and PR |
-| `validate-pr.yml` | PR with changes in `schemas/` | Validates syntax, metadata and canonical layout |
+| `validate-pr.yml` | PR changing schemas, scripts or workflows; reusable call | Validates contracts, metadata, canonical layout and shell syntax |
+| `pipeline.yml` | Push to `main` except workflow-only changes; manual run | Validates contracts and scripts, then publishes a repository semver release |
+| `codeql.yml` | Push to `main`, PR or manual run | Analyzes GitHub Actions workflows |
+| `security.yml` | PR or manual run | Runs Gitleaks and Trivy security scans |
 | `tag-schema.yml` | Schema changes merged to `main` | Creates missing immutable schema tags |
+
+This repository contains Avro, JSON Schema and Protobuf contracts plus shell tooling.
+CI does not install Go or run Go builds, tests, vet, GoSec or govulncheck.
+Repository semver releases are separate from immutable per-contract schema tags.
 
 ## Configuration
 
