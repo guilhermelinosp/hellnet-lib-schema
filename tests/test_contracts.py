@@ -15,6 +15,7 @@ import contracts as c
 import evolution as e
 import process_issue as p
 import registry_check as r
+import release as rel
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -333,6 +334,29 @@ class PathBoundaryTests(unittest.TestCase):
 
 
 class IssueTests(unittest.TestCase):
+    def test_generated_commit_uses_api_without_custom_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "schemas/new/schema.avsc"
+            path.parent.mkdir(parents=True)
+            path.write_text('{"type":"record","name":"Event","fields":[]}\n')
+            responses = [{"tree": {"sha": "base-tree"}}, {"sha": "blob"}, {"sha": "tree"},
+                         {"sha": "commit"}, {"ref": "refs/heads/schema/issue-12"},
+                         {"commit": {"verification": {"verified": True}}}]
+            with patch.dict(os.environ, {"GH_TOKEN": "test-token"}), patch.object(p, "api_request",
+                                                                                       side_effect=responses) as request:
+                old_cwd = Path.cwd()
+                try:
+                    os.chdir(root)
+                    self.assertEqual(p.create_verified_commit("owner/repo", "schema/issue-12", "base",
+                                                              ["schemas/new/schema.avsc"], "feat: generated",
+                                                              "test-app"), "commit")
+                finally:
+                    os.chdir(old_cwd)
+            commit_payload = request.call_args_list[3].args[2]
+            self.assertNotIn("author", commit_payload)
+            self.assertNotIn("committer", commit_payload)
+
     def test_existing_open_and_merged_prs_reused(self):
         for state in ("OPEN", "MERGED"):
             pr = {"body": "Closes #12", "state": state, "url": "https://github.com/owner/repo/pull/1"}
@@ -412,6 +436,21 @@ class RegistryTests(unittest.TestCase):
         with patch.object(r, "request", side_effect=ValueError("Registry HTTP 401")):
             with self.assertRaisesRegex(ValueError, "401"):
                 r.check("https://registry.example", "default", REPO / "schemas/avro/fast/ride/requested/v1")
+
+
+class ReleaseTests(unittest.TestCase):
+    def test_first_release(self):
+        self.assertEqual(rel.next_version([], []), "v1.0.0")
+
+    def test_feature_and_patch_release(self):
+        self.assertEqual(rel.next_version(["v1.6.0"], ["feat: improve contract"]), "v1.7.0")
+        self.assertEqual(rel.next_version(["v1.6.0"], ["fix: typo"]), "v1.6.1")
+
+    def test_beta_release(self):
+        self.assertEqual(rel.next_version(["v1.7.0-beta.2"], []), "v1.7.0-beta.3")
+
+    def test_invalid_tags_ignored_and_no_major_bump(self):
+        self.assertEqual(rel.next_version(["not-a-version", "v1.6.0"], ["refactor!: internal", "BREAKING CHANGE: none"]), "v1.6.1")
 
 
 if __name__ == "__main__":

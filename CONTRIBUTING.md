@@ -137,6 +137,22 @@ The automation uses the installed App and never merges its own PR. A successful
 offline run does not prove that the App token, Registry or production consumers
 work. Validate those separately in the intended environment.
 
+## Automation identity
+
+`issue-schema.yml`, `auto-pr.yml`, `report-pr.yml`, `tag-schema.yml` and
+`release.yml` use the `hellnet-actions` installation token for their write
+operations. The App slug and numeric user ID are resolved dynamically; automatic
+tags use `hellnet-actions[bot]` and its `ID+slug[bot]@users.noreply.github.com`
+address. No workflow stores a legacy custom address as the primary identity.
+
+`validate-pr.yml`, `pr-check.yml`, `security.yml` and `codeql.yml` remain
+read-only/native validator workflows. They use `GITHUB_TOKEN` only for checkout,
+SARIF upload and existing GitHub Actions integrations. They never receive the App
+private key. `report-pr.yml` runs after them in a trusted `workflow_run` context,
+then uses the App token to update the single marked comment, the
+`hellnet-actions / validation` check and focused labels. It does not approve or
+merge PRs.
+
 ## Registry boundary
 
 `check-compatibility.sh` uses Apicurio v2 GET of the artifact compatibility rule,

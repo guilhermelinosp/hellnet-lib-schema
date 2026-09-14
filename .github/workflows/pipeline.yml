@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -22,10 +22,5 @@ jobs:
   release:
     name: release
     needs: validate
-    uses: guilhermelinosp/templates/.github/workflows/release.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
-    with:
-      app-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
-    secrets:
-      HELLNET_ACTIONS_PRIVATE_KEY: ${{ secrets.HELLNET_ACTIONS_PRIVATE_KEY }}
-    permissions:
-      contents: write
+    uses: ./.github/workflows/release.yml
+    secrets: inherit

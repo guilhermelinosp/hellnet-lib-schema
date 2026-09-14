@@ -7,14 +7,60 @@ import os
 import re
 import subprocess
 import tempfile
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from contracts import generate, require, validate_tree
 from evolution import check_evolution, protect_history
 
+API = "https://api.github.com"
+
 
 def run(*args):
     return subprocess.check_output(list(args), text=True).strip()
+
+
+def api_request(path, method="GET", payload=None):
+    request = urllib.request.Request(API + path, method=method, headers={
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    })
+    if payload is not None:
+        request.data = json.dumps(payload).encode()
+        request.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode(errors="replace")
+        raise RuntimeError(f"GitHub API {error.code} for {path}: {detail[:200]}") from error
+
+
+def create_verified_commit(repo, branch, base, files, message, app_slug):
+    """Create the generated commit through GitHub APIs, never git commit."""
+    require(bool(os.environ.get("GH_TOKEN")), "GH_TOKEN is required for bot commits")
+    require(bool(re.fullmatch(r"[A-Za-z0-9-]+", app_slug)), "invalid bot identity")
+    base_tree = api_request(f"/repos/{repo}/git/commits/{base}")["tree"]["sha"]
+    entries = []
+    for path in files:
+        relative = Path(path)
+        require(relative.is_file() and relative.parts[0] == "schemas", "generated file is outside schemas")
+        blob = api_request(f"/repos/{repo}/git/blobs", "POST", {
+            "content": relative.read_text(), "encoding": "utf-8",
+        })
+        entries.append({"path": relative.as_posix(), "mode": "100644", "type": "blob", "sha": blob["sha"]})
+    tree = api_request(f"/repos/{repo}/git/trees", "POST", {"base_tree": base_tree, "tree": entries})
+    commit = api_request(f"/repos/{repo}/git/commits", "POST", {
+        "message": message, "tree": tree["sha"], "parents": [base],
+    })
+    commit_sha = commit["sha"]
+    api_request(f"/repos/{repo}/git/refs", "POST", {"ref": f"refs/heads/{branch}", "sha": commit_sha})
+    verified = api_request(f"/repos/{repo}/commits/{commit_sha}")["commit"]["verification"]["verified"]
+    require(verified is True, f"GitHub did not verify generated commit {commit_sha}")
+    print(f"Generated commit {commit_sha} verified=true by {app_slug}[bot]")
+    return commit_sha
 
 
 def linked_pr(prs, number):
@@ -69,12 +115,20 @@ def process(repo, number, app_slug, user_id):
     protect_history(Path.cwd(), base)
     check_evolution(Path("schemas"))
     if not remote:
-        require(bool(re.fullmatch(r"[A-Za-z0-9-]+", app_slug)) and user_id.isdigit(), "invalid bot identity")
-        run("git", "config", "user.name", f"{app_slug}[bot]")
-        run("git", "config", "user.email", f"{user_id}+{app_slug}[bot]@users.noreply.github.com")
-        run("git", "add", "--", "schemas/")
-        run("git", "-c", "commit.gpgsign=false", "commit", "-m", f"feat(schema): generate contract from Issue #{number}")
-        run("git", "push", "origin", f"HEAD:refs/heads/{branch}")
+        message = f"feat(schema): generate contract from Issue #{number}"
+        if os.environ.get("GH_TOKEN"):
+            changes = run("git", "diff", "--name-status", "--no-renames", base).splitlines()
+            paths = [line.split("\t", 1)[1] for line in changes if line.startswith("A\t")]
+            require(paths and all(path.startswith("schemas/") for path in paths),
+                    "generated commit must contain only new schema files")
+            create_verified_commit(repo, branch, base, paths, message, app_slug)
+        else:
+            require(bool(re.fullmatch(r"[A-Za-z0-9-]+", app_slug)) and user_id.isdigit(), "invalid bot identity")
+            run("git", "config", "user.name", f"{app_slug}[bot]")
+            run("git", "config", "user.email", f"{user_id}+{app_slug}[bot]@users.noreply.github.com")
+            run("git", "add", "--", "schemas/")
+            run("git", "-c", "commit.gpgsign=false", "commit", "-m", message)
+            run("git", "push", "origin", f"HEAD:refs/heads/{branch}")
     body = (f"<!-- schema-issue:{number} -->\nCloses #{number}\n\n"
             "Generated contract validated offline. Review the fields, version identity and compatibility policy. "
             "Merge creates an immutable schema tag; Registry registration remains a separate explicit operation.\n")

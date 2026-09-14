@@ -1,0 +1,14 @@
+name: release
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        value: ${{ jobs.release.outputs.version }}
+
+jobs:
+  release:
+    uses: guilhermelinosp/templates/.github/workflows/release.yml@f1f6b00418bcdce7fb2357b12211f0dfb61783cc # templates PR #152
+    with:
+      app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+    secrets: inherit

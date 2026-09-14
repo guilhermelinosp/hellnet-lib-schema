@@ -1,0 +1,16 @@
+name: report-pr
+
+on:
+  workflow_run:
+    workflows: [validate-schema-pr, pr-check, security, codeql]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    uses: guilhermelinosp/templates/.github/workflows/pr-report.yml@f1f6b00418bcdce7fb2357b12211f0dfb61783cc # templates PR #152
+    with:
+      app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+    secrets: inherit

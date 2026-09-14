@@ -3,24 +3,21 @@ name: auto-pr
 on:
   push:
     branches:
-      - "feat/**"
-      - "fix/**"
-      - "ci/**"
-      - "chore/**"
-      - "docs/**"
-      - "refactor/**"
-      - "build/**"
-      - "test/**"
-  workflow_dispatch:
+      - 'feat/**'
+      - 'fix/**'
+      - 'ci/**'
+      - 'chore/**'
+      - 'docs/**'
+      - 'refactor/**'
+      - 'build/**'
+      - 'test/**'
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   create-pr:
-    uses: guilhermelinosp/templates/.github/workflows/auto-pr.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
+    uses: guilhermelinosp/templates/.github/workflows/auto-pr.yml@f1f6b00418bcdce7fb2357b12211f0dfb61783cc # templates PR #152
     with:
-      app-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
-    secrets:
-      HELLNET_ACTIONS_PRIVATE_KEY: ${{ secrets.HELLNET_ACTIONS_PRIVATE_KEY }}
+      app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+    secrets: inherit
