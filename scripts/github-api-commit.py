@@ -8,7 +8,6 @@ import http.client
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -41,29 +40,14 @@ def api(token: str, path: str, method: str = "GET", payload: dict | None = None)
         connection.close()
 
 
-def git(*args: str) -> str:
-    return subprocess.check_output(["git", *args], text=True).strip()
-
-
 def changed_files(root: str) -> list[tuple[str, str]]:
-    entries: list[tuple[str, str]] = []
-    status = subprocess.check_output(
-        ["git", "status", "--porcelain=v1", "--", root], text=True
-    )
-    for line in status.splitlines():
-        if not line:
-            continue
-        code = line[:2]
-        path = line[3:]
-        if "->" in path:
-            path = path.split(" -> ", 1)[1]
-        if code == "??":
-            entries.append(("added", path))
-        elif "D" in code:
-            entries.append(("deleted", path))
-        else:
-            entries.append(("modified", path))
-    return entries
+    """Return generated regular files without executing a shell command."""
+    root_path = Path(root)
+    return [
+        ("modified", path.relative_to(root_path.parent).as_posix())
+        for path in root_path.rglob("*")
+        if path.is_file() and not path.is_symlink()
+    ]
 
 
 def main() -> int:
