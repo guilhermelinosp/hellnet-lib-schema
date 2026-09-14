@@ -8,7 +8,7 @@ on:
 
 jobs:
   release:
-    uses: guilhermelinosp/templates/.github/workflows/release.yml@df74d94727dface3aa3aa9011ab02b8b037f90ea # integrated templates main
+    uses: guilhermelinosp/templates/.github/workflows/release.yml@cd599423d53ff20e23158c693ff232e783ac7080 # integrated templates main
     with:
       app-client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
     secrets: inherit
