@@ -2,21 +2,27 @@ name: process-schema-issue
 
 on:
   workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Existing schema Issue number to process or safely retry
+        required: true
+        type: number
   issues:
-    types: [opened]
+    types: [opened, labeled]
 
 permissions: {}
 
+concurrency:
+  group: schema-issue-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+
 jobs:
   generate:
-    if: contains(github.event.issue.labels.*.name, 'schema')
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'schema'))
     runs-on: ubuntu-latest
-    outputs:
-      name: ${{ steps.generate.outputs.name }}
-      version: ${{ steps.generate.outputs.version }}
-      path: ${{ steps.generate.outputs.path }}
-      branch: ${{ steps.branch.outputs.name }}
-
+    timeout-minutes: 10
     steps:
       - name: Create GitHub App installation token
         id: app-token
@@ -32,62 +38,18 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: main
+          fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
-      - name: Get GitHub App user ID
-        id: get-user-id
+      - uses: ./.github/actions/setup-schema-tools
+
+      - name: Generate or resume the schema PR
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
         run: |
-          user_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
-          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
-
-      - name: Parse issue and generate schema
-        id: generate
-        env:
-          ISSUE_BODY: ${{ github.event.issue.body }}
-        run: |
-          chmod +x scripts/generate-from-issue.sh
-          result=$(./scripts/generate-from-issue.sh "$ISSUE_BODY")
-          echo "$result"
-          {
-            echo "name=$(echo "$result" | grep '^NAME=' | cut -d= -f2)"
-            echo "type=$(echo "$result" | grep '^TYPE=' | cut -d= -f2)"
-            echo "version=$(echo "$result" | grep '^VERSION=' | cut -d= -f2)"
-            echo "path=$(echo "$result" | grep '^PATH=' | cut -d= -f2)"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Create branch
-        id: branch
-        env:
-          SCHEMA_NAME: ${{ steps.generate.outputs.name }}
-          SCHEMA_VERSION: ${{ steps.generate.outputs.version }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          APP_USER_ID: ${{ steps.get-user-id.outputs.user-id }}
-        run: |
-          branch="schema/${SCHEMA_NAME}-v${SCHEMA_VERSION}"
-          git checkout -b "$branch"
-          git add schemas/
-          git config user.name "${APP_SLUG}[bot]"
-          git config user.email "${APP_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
-          git commit -m "feat(schema): ${SCHEMA_NAME} v${SCHEMA_VERSION}"
-          git push origin "$branch"
-          echo "name=$branch" >> "$GITHUB_OUTPUT"
-
-      - name: Open PR
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          SCHEMA_NAME: ${{ steps.generate.outputs.name }}
-          SCHEMA_VERSION: ${{ steps.generate.outputs.version }}
-          BRANCH_NAME: ${{ steps.branch.outputs.name }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          gh pr create \
-            --base main \
-            --head "$BRANCH_NAME" \
-            --title "schema: ${SCHEMA_NAME} v${SCHEMA_VERSION}" \
-            --body "Closes #${ISSUE_NUMBER}" \
-            --label schema \
-            --repo "$REPO"
+          APP_USER_ID="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+          export APP_USER_ID
+          python3 scripts/process_issue.py --issue "$ISSUE_NUMBER"

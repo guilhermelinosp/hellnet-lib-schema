@@ -42,7 +42,10 @@ jobs:
           echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
 
       - name: Validate contracts before tagging
-        run: bash scripts/validate.sh schemas
+        uses: ./.github/actions/setup-schema-tools
+
+      - name: Validate contracts and evolution before tagging
+        run: python3 scripts/evolution.py
 
       - name: Create missing immutable schema tags
         shell: bash

@@ -3,7 +3,8 @@
 Centralized event-contract repository and Schema Registry automation for event-driven services.
 
 ```
-Issue → GitHub Actions → reviewed schema PR → Schema Registry
+Issue → generated PR → validation + review → main → immutable schema tag
+                                                    └─ explicit Registry registration
 ```
 
 ## How it works
@@ -86,7 +87,7 @@ JSON Schema and Protobuf keep the generic layout `schemas/{format}/{schema-name}
 
 | Schema | Format | File |
 |--------|--------|------|
-| Order Created | Avro (Fast) | `schemas/avro/fast/order/created/v1/schema.avsc` |
+| Ride Completed | Avro (Fast) | `schemas/avro/fast/ride/completed/v1/schema.avsc` |
 | Invoice Event | JSON | `schemas/json/hellnet-invoice-event/v1/schema.json` |
 | Stock Updated | Protobuf | `schemas/protobuf/hellnet-stock-updated/v1/schema.proto` |
 
@@ -135,27 +136,29 @@ schema/hellnet-stock-updated/v1
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `issue-schema.yml` | Issue opened with `schema` label | Generates the schema branch and PR |
-| `validate-pr.yml` | PR changing schemas, scripts or workflows; reusable call | Validates contracts, metadata, canonical layout and shell syntax |
+| `issue-schema.yml` | Issue opened/labeled `schema`; manual retry by Issue number | Validates input, generates a schema branch and reuses an existing PR on retries |
+| `validate-pr.yml` | PR changing contracts/tooling; reusable call | Runs regression tests, real format validators, append-only history and compatibility gates |
 | `pipeline.yml` | Push to `main` except workflow-only changes; manual run | Validates contracts and scripts, then publishes a repository semver release |
 | `codeql.yml` | Push to `main`, PR or manual run | Analyzes GitHub Actions workflows |
 | `security.yml` | PR or manual run | Runs Gitleaks and Trivy security scans |
 | `tag-schema.yml` | Schema changes merged to `main` | Creates missing immutable schema tags |
 
-This repository contains Avro, JSON Schema and Protobuf contracts plus shell tooling.
+This repository contains Avro, JSON Schema and Protobuf contracts plus Python tooling with shell entry points.
 CI does not install Go or run Go builds, tests, vet, GoSec or govulncheck.
 Repository semver releases are separate from immutable per-contract schema tags.
 
 ## Configuration
 
-### GitHub Secrets (obrigatórios)
+### GitHub App automation
 
-| Secret | Descrição |
-|--------|-----------|
-| `APICURIO_URL` | Apicurio Registry endpoint (ex: `http://192.168.1.254:8085`) |
-| `APICURIO_TOKEN` | Token de autenticação (se exigido) |
-| `HELLNET_ACTIONS_CLIENT_ID` | Client ID do GitHub App `hellnet-actions` |
-| `HELLNET_ACTIONS_PRIVATE_KEY` | Private Key do App, armazenada como secret criptografado |
+| Setting | Storage | Purpose |
+|---------|---------|---------|
+| `HELLNET_ACTIONS_CLIENT_ID` | Actions **variable** | Client ID of the installed `hellnet-actions` App |
+| `HELLNET_ACTIONS_PRIVATE_KEY` | Actions **secret** | PEM private key of the App |
+
+The App needs repository Contents, Issues and Pull requests write access. No Registry
+credentials are needed for generation, tests or CI. Manual Apicurio operations accept
+`--registry "$APICURIO_URL"` and optional `APICURIO_TOKEN` in the local environment.
 
 ### Compatibility levels
 
@@ -166,22 +169,45 @@ Repository semver releases are separate from immutable per-contract schema tags.
 | `FULL` | Both backward and forward compatible |
 | `NONE` | No compatibility checks |
 
+Published `vN` directories are append-only and cannot be edited or deleted. Create
+the next version instead. Fast Avro versions intentionally have different subjects,
+topics and record fullnames: `v2` is a **new contract identity**, not a promise that a
+v1 consumer can read v2 events. Its metadata compatibility mode applies inside the
+new Registry subject. Other contracts are compared with their previous directory
+version. See [the evolution policy and validator limits](CONTRIBUTING.md#evolution-policy).
+
 ## Local development
 
 ### Validate schemas locally
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip --isolated install -r requirements.txt
 ./scripts/validate.sh
+python -m unittest discover -s tests -v
+git fetch origin main
+python scripts/evolution.py --base origin/main
 ```
+
+Use Python 3.11 or newer. `grpcio-tools` supplies the pinned `protoc` compiler;
+it does not generate or run a gRPC service. Validation works offline after dependency
+installation. See [contribution instructions](CONTRIBUTING.md) for field types,
+explicit Protobuf numbers and safe Issue retries.
 
 ### Register schema manually
 
 ```bash
 ./scripts/register.sh \
-  --registry "\$APICURIO_URL" \
+  --registry "$APICURIO_URL" \
   --group default \
   --schema schemas/avro/fast/ride/requested/v1
 ```
+
+`scripts/check-compatibility.sh` performs a non-mutating Apicurio v2 rule test.
+It requires an existing artifact with an explicit compatibility rule matching
+metadata; missing/mismatched rules and authorization failures stop the check.
+It never creates an artifact or updates a rule. Registration is a separate write.
 
 ### Redpanda Schema Registry
 

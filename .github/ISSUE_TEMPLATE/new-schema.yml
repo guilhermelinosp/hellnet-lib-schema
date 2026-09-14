@@ -39,7 +39,13 @@ body:
     attributes:
       label: "Fields (YAML)"
       description: |
-        Define fields in YAML format:
+        Define fields in YAML format. Types belong to the chosen format:
+        Avro: double/long/boolean; JSON: number/integer/boolean;
+        Protobuf: double/int64/bool. Protobuf requires an explicit `number`
+        for every field; never change or reuse an existing field number.
+        `required: false` means nullable with a default in Avro, optional property
+        in JSON, and explicit presence (`optional`) in Protobuf. Proto3 has no
+        required fields or explicit defaults. Add `doc` to explain a field.
         ```yaml
         - name: orderId
           type: string

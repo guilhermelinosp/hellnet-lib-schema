@@ -6,7 +6,9 @@ on:
     paths:
       - "schemas/**"
       - "scripts/**"
-      - ".github/workflows/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/**"
 
 permissions:
   contents: read
@@ -14,12 +16,26 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
-      - name: Validate all schemas
+      - uses: ./.github/actions/setup-schema-tools
+
+      - name: Regression tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Validate contracts and evolution policy
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          bash scripts/validate.sh schemas
+          args=()
+          if [ -n "$BASE_SHA" ]; then
+            args+=(--base "$BASE_SHA")
+          fi
+          python3 scripts/evolution.py "${args[@]}"
 
       - name: Check shell syntax
         run: |
