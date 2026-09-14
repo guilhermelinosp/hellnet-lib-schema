@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.client
 import json
 import os
 import re
@@ -13,24 +14,31 @@ from pathlib import Path
 
 
 def api(token: str, path: str, method: str = "GET", payload: dict | None = None) -> dict:
-    """Call one allowlisted GitHub API path through gh without shell interpolation."""
+    """Call one validated GitHub API path over a fixed GitHub HTTPS host."""
     if not re.fullmatch(r"repos/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.:/-]+)?", path):
         raise ValueError("invalid GitHub API path")
-    command = ["gh", "api", path]
-    request_body = None
-    if method != "GET":
-        command.extend(["--method", method, "--input", "-"])
-        request_body = json.dumps(payload or {})
-    result = subprocess.run(
-        command,
-        input=request_body,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"GitHub API {method} {path} failed: {result.stderr.strip()}")
-    return json.loads(result.stdout)
+    body = None if payload is None else json.dumps(payload)
+    connection = http.client.HTTPSConnection("api.github.com", timeout=30)
+    try:
+        connection.request(
+            method,
+            f"/{path}",
+            body=body,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {token}",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json",
+                "User-Agent": "hellnet-actions",
+            },
+        )
+        response = connection.getresponse()
+        raw = response.read().decode("utf-8")
+        if response.status >= 400:
+            raise RuntimeError(f"GitHub API {method} {path} failed ({response.status}): {raw}")
+        return json.loads(raw)
+    finally:
+        connection.close()
 
 
 def git(*args: str) -> str:
