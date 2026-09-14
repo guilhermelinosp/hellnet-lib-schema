@@ -1,8 +1,7 @@
 name: pipeline
 
-# Library CI: cut a semver tag + GitHub Release on every code change to main
-# (changes limited to .github/ are ignored so CI edits never trigger a
-# release), then run the quality gate.
+# Validate contracts and shell scripts before publishing a repository release.
+# Workflow-only changes are validated on PRs and do not trigger a release.
 
 on:
   push:
@@ -15,8 +14,14 @@ permissions:
   contents: write
 
 jobs:
+  validate:
+    uses: ./.github/workflows/validate-pr.yml
+    permissions:
+      contents: read
+
   release:
     name: release
+    needs: validate
     uses: guilhermelinosp/templates/.github/workflows/release.yml@9aa28e4932048b724e165f169963643e8c4bcd69 # main
     permissions:
       contents: write
