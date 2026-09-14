@@ -1,0 +1,10 @@
+name: Set up schema tools
+description: Install the same pinned offline validators used locally
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        python3 -m venv .venv
+        .venv/bin/python -m pip --isolated install --disable-pip-version-check -r requirements.txt
+        echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"

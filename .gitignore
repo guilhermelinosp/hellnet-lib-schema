@@ -10,3 +10,7 @@ Thumbs.db
 # Temp
 *.tmp
 *.swp
+
+.venv/
+__pycache__/
+*.pyc

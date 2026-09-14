@@ -1,5 +1,12 @@
 version: 2
 updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      schema-tooling:
+        patterns: ["*"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -8,4 +15,3 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
-
