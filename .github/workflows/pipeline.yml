@@ -22,6 +22,9 @@ jobs:
   release:
     name: release
     needs: validate
-    uses: guilhermelinosp/templates/.github/workflows/release.yml@9aa28e4932048b724e165f169963643e8c4bcd69 # main
+    uses: guilhermelinosp/templates/.github/workflows/release.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
+    with:
+      app-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+    secrets: inherit
     permissions:
       contents: write
