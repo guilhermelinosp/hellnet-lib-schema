@@ -2,38 +2,25 @@ name: process-schema-issue
 
 on:
   workflow_dispatch:
-    inputs:
-      issue_number:
-        description: Existing schema Issue number to process or safely retry
-        required: true
-        type: number
   issues:
-    types: [opened, labeled]
+    types: [opened]
 
-permissions:
-  contents: read
-
-concurrency:
-  group: schema-issue-${{ github.event.issue.number || inputs.issue_number }}
-  cancel-in-progress: false
+permissions: {}
 
 jobs:
   generate:
-    if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'schema'))
+    if: contains(github.event.issue.labels.*.name, 'schema')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: main
-          fetch-depth: 0
-          token: ${{ github.token }}
+    outputs:
+      name: ${{ steps.generate.outputs.name }}
+      version: ${{ steps.generate.outputs.version }}
+      path: ${{ steps.generate.outputs.path }}
+      branch: ${{ steps.branch.outputs.name }}
 
-      - name: Create least-privilege App token
+    steps:
+      - name: Create GitHub App installation token
         id: app-token
-        uses: ./.github/actions/hellnet-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
           private-key: ${{ secrets.HELLNET_ACTIONS_PRIVATE_KEY }}
@@ -45,18 +32,59 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: main
-          fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
-      - uses: ./.github/actions/setup-schema-tools
+      - name: Parse issue and generate schema
+        id: generate
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          chmod +x scripts/generate-from-issue.sh
+          result=$(./scripts/generate-from-issue.sh "$ISSUE_BODY")
+          echo "$result"
+          {
+            echo "name=$(echo "$result" | grep '^NAME=' | cut -d= -f2)"
+            echo "type=$(echo "$result" | grep '^TYPE=' | cut -d= -f2)"
+            echo "version=$(echo "$result" | grep '^VERSION=' | cut -d= -f2)"
+            echo "path=$(echo "$result" | grep '^PATH=' | cut -d= -f2)"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Generate or resume the schema PR
+      - name: Create verified bot commit and branch through GitHub API
+        id: branch
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          SCHEMA_NAME: ${{ steps.generate.outputs.name }}
+          SCHEMA_VERSION: ${{ steps.generate.outputs.version }}
+          REPO: ${{ github.repository }}
         run: |
-          APP_USER_ID="${{ steps.app-token.outputs.user-id }}"
-          export APP_USER_ID
-          python3 scripts/process_issue.py --issue "$ISSUE_NUMBER"
+          set -euo pipefail
+          branch="schema/${SCHEMA_NAME}-v${SCHEMA_VERSION}"
+          existing=$(gh pr list --repo "$REPO" --head "$branch" --state open --json number --jq '.[0].number' || true)
+          if [ -n "$existing" ]; then
+            echo "PR #$existing already exists for $branch"
+            echo "name=$branch" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 scripts/github-api-commit.py \
+            --repo "$REPO" \
+            --base main \
+            --branch "$branch" \
+            --message "feat(schema): ${SCHEMA_NAME} v${SCHEMA_VERSION}"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SCHEMA_NAME: ${{ steps.generate.outputs.name }}
+          SCHEMA_VERSION: ${{ steps.generate.outputs.version }}
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "schema: ${SCHEMA_NAME} v${SCHEMA_VERSION}" \
+            --body "Closes #${ISSUE_NUMBER}" \
+            --label schema \
+            --repo "$REPO"
