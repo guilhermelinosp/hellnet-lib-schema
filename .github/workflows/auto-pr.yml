@@ -5,12 +5,21 @@ on:
     branches:
       - "feat/**"
       - "fix/**"
+      - "ci/**"
+      - "chore/**"
+      - "docs/**"
+      - "refactor/**"
+      - "build/**"
+      - "test/**"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
   create-pr:
-    uses: guilhermelinosp/templates/.github/workflows/auto-pr.yml@e7d093b460c1e25f16121d509eefcbb597612c95 # main
+    uses: guilhermelinosp/templates/.github/workflows/auto-pr.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
+    with:
+      app-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
+    secrets: inherit
