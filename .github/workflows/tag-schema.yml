@@ -32,32 +32,16 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
-      - name: Get GitHub App user ID
-        id: get-user-id
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-        run: |
-          user_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
-          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
-
       - name: Validate contracts before tagging
-        uses: ./.github/actions/setup-schema-tools
+        run: bash scripts/validate.sh schemas
 
-      - name: Validate contracts and evolution before tagging
-        run: python3 scripts/evolution.py
-
-      - name: Create missing immutable schema tags
+      - name: Create missing immutable schema tags through GitHub API
         shell: bash
         env:
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          APP_USER_ID: ${{ steps.get-user-id.outputs.user-id }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-
-          git config user.name "${APP_SLUG}[bot]"
-          git config user.email "${APP_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
-
           while IFS= read -r meta; do
             name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' "$meta")"
             version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$meta")"
@@ -76,19 +60,25 @@ jobs:
             esac
 
             tag="schema/${schema_key}/v${version}"
-
-            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-              echo "exists: $tag"
-              continue
-            fi
-
             introduced_commit="$(git log --diff-filter=A --format='%H' -- "$meta" | tail -n 1)"
             if [ -z "$introduced_commit" ]; then
               echo "ERROR: cannot find introduction commit for $meta" >&2
               exit 1
             fi
 
-            git tag -a "$tag" "$introduced_commit" -m "schema: ${name} v${version}"
-            git push origin "refs/tags/$tag"
-            echo "created: $tag -> $introduced_commit"
+            existing="$(gh api "repos/$REPOSITORY/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
+            if [ -n "$existing" ]; then
+              if [ "$existing" != "$introduced_commit" ]; then
+                echo "ERROR: immutable tag $tag points to $existing, expected $introduced_commit" >&2
+                exit 1
+              fi
+              echo "exists: $tag -> $existing"
+              continue
+            fi
+
+            gh api --method POST "repos/$REPOSITORY/git/refs" \
+              -f "ref=refs/tags/$tag" \
+              -f "sha=$introduced_commit" >/dev/null
+            commit_verified="$(gh api "repos/$REPOSITORY/commits/$introduced_commit" --jq '.commit.verification.verified')"
+            echo "created: $tag -> $introduced_commit (commit verification.verified=$commit_verified)"
           done < <(find schemas -type f -name '.meta.json' | LC_ALL=C sort)
