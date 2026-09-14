@@ -20,7 +20,8 @@ jobs:
     uses: guilhermelinosp/templates/.github/workflows/labeler.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
     with:
       app-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
-    secrets: inherit
+    secrets:
+      HELLNET_ACTIONS_PRIVATE_KEY: ${{ secrets.HELLNET_ACTIONS_PRIVATE_KEY }}
 
   policy:
     uses: guilhermelinosp/templates/.github/workflows/pr-policy.yml@224f59d684d4a225418b4b3b7c6d419d968afb07 # templates control-plane branch
@@ -35,4 +36,5 @@ jobs:
       policy: ${{ needs.policy.result }}
       shell: ${{ needs.merge-check.result }}
       tests: ${{ needs.merge-check.result }}
-    secrets: inherit
+    secrets:
+      HELLNET_ACTIONS_PRIVATE_KEY: ${{ secrets.HELLNET_ACTIONS_PRIVATE_KEY }}
