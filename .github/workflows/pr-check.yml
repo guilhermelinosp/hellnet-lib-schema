@@ -13,29 +13,27 @@ permissions:
   pull-requests: read
 
 jobs:
-  merge-check:
-    uses: guilhermelinosp/templates/.github/workflows/merge-check.yml@8f299961846cf1d0cbf7129a99ea6c3095ec3abd
-
-  gitleaks:
-    uses: guilhermelinosp/templates/.github/workflows/gitleaks.yml@8f299961846cf1d0cbf7129a99ea6c3095ec3abd
-
-  policy:
-    uses: guilhermelinosp/templates/.github/workflows/pr-policy.yml@df9f66533749a4a3a4b59c18a828a179800de096
-
   pr-gate:
-    if: always()
-    needs: [merge-check, gitleaks, policy]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: gate
-        shell: python
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+      - name: Validate pull request policy
         env:
-          NEEDS: ${{ toJson(needs) }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.head_ref }}
         run: |
-          import json, os, sys
-          needs = json.loads(os.environ['NEEDS'])
-          failed = [k for k, v in needs.items() if v.get('result') not in ('success', 'skipped')]
-          if failed:
-              print('BLOCKED-BY:', failed)
-              sys.exit(1)
-          print('ALL-GREEN')
+          set -euo pipefail
+          printf '%s' "$PR_TITLE" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|ci|perf|build|revert)(\([a-zA-Z0-9_.-]+\))?: .+' \
+            || { echo 'Invalid PR title; use Conventional Commits'; exit 1; }
+          printf '%s' "$PR_BRANCH" | grep -qE '^(feat|fix|ci|chore|docs|refactor|build|test|bot|schema)/[^/]+$' \
+            || { echo "Unsupported branch name: $PR_BRANCH"; exit 1; }
+      - name: Scan for leaked secrets
+        uses: gitleaks/gitleaks-action@ff98106e3bbcdd3b2a7b8e8c0f0c9c9cf5d7e4bc # v2
+        continue-on-error: false
+      - name: Validate shell scripts
+        run: |
+          set -euo pipefail
+          while IFS= read -r script; do bash -n "$script"; done < <(find scripts -type f -name '*.sh' -print)
