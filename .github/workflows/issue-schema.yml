@@ -25,7 +25,7 @@ jobs:
           client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
           private-key: ${{ secrets.HELLNET_ACTIONS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: hellnet-lib-schema
+          repositories: hellnet-schemas
           permission-contents: write
           permission-issues: write
           permission-pull-requests: write
@@ -84,7 +84,7 @@ jobs:
           gh pr create \
             --base main \
             --head "$BRANCH_NAME" \
-            --title "schema: ${SCHEMA_NAME} v${SCHEMA_VERSION}" \
+            --title "feat(schema): ${SCHEMA_NAME} v${SCHEMA_VERSION}" \
             --body "Closes #${ISSUE_NUMBER}" \
             --label schema \
             --repo "$REPO"
