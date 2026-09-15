@@ -6,7 +6,8 @@ on:
     paths:
       - "schemas/**"
 
-permissions: {}
+permissions:
+  contents: write
 
 concurrency:
   group: schema-tags-main
@@ -16,21 +17,11 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
-      - name: Create GitHub App installation token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ vars.HELLNET_ACTIONS_CLIENT_ID }}
-          private-key: ${{ secrets.HELLNET_ACTIONS_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: hellnet-lib-schema
-          permission-contents: write
-
       - name: Checkout full history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ github.token }}
 
       - name: Validate contracts before tagging
         run: bash scripts/validate.sh schemas
@@ -38,7 +29,7 @@ jobs:
       - name: Create missing immutable schema tags through GitHub API
         shell: bash
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail

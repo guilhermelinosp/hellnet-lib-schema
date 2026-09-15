@@ -81,15 +81,13 @@ schemas/avro/fast/ride/accepted/v1/schema.avsc
 schemas/avro/fast/ride/completed/v1/schema.avsc
 ```
 
-JSON Schema and Protobuf keep the generic layout `schemas/{format}/{schema-name}/v{version}`.
+Only Avro contracts are accepted. Every contract uses the Fast hierarchy above.
 
 ### Example schemas
 
 | Schema | Format | File |
 |--------|--------|------|
 | Ride Completed | Avro (Fast) | `schemas/avro/fast/ride/completed/v1/schema.avsc` |
-| Invoice Event | JSON | `schemas/json/hellnet-invoice-event/v1/schema.json` |
-| Stock Updated | Protobuf | `schemas/protobuf/hellnet-stock-updated/v1/schema.proto` |
 
 ## Schema naming convention
 
@@ -128,8 +126,7 @@ Each merged schema version receives an immutable tag after it reaches `main`:
 ```
 schema/fast-ride-requested/v1
 schema/fast-ride-completed/v1
-schema/hellnet-invoice-event/v1
-schema/hellnet-stock-updated/v1
+schema/fast-driver-location-updated/v1
 ```
 
 ## CI/CD Pipeline
@@ -138,40 +135,19 @@ schema/hellnet-stock-updated/v1
 |----------|---------|--------|
 | `issue-schema.yml` | Issue opened/labeled `schema`; manual retry by Issue number | Validates input, generates a schema branch and reuses an existing PR on retries |
 | `validate-pr.yml` | PR changing contracts/tooling; reusable call | Runs regression tests, real format validators, append-only history and compatibility gates |
-| `pipeline.yml` | Push to `main` except workflow-only changes; manual run | Validates contracts and scripts, then publishes a repository semver release |
 | `codeql.yml` | Push to `main`, PR or manual run | Analyzes GitHub Actions workflows |
 | `security.yml` | PR or manual run | Runs Gitleaks and Trivy security scans |
 | `tag-schema.yml` | Schema changes merged to `main` | Creates missing immutable schema tags |
-| `report-pr.yml` | Completion of validator workflows | Updates one bot comment, check and relevant labels |
-| `release.yml` | Main branch after validation | Creates immutable repository semver tag and GitHub Release as the App |
 
-This repository contains Avro, JSON Schema and Protobuf contracts plus Python tooling with shell entry points.
+This repository contains Avro contracts and focused Python tooling with shell entry points.
 CI does not install Go or run Go builds, tests, vet, GoSec or govulncheck.
-Repository semver releases are separate from immutable per-contract schema tags.
-
-`hellnet-actions` is the reusable automation boundary. The composite action
-`.github/actions/hellnet-app-token` accepts only the permissions required by its
-caller and exposes the installation token, App slug and numeric bot ID. Future
-repositories can reuse this component or move it unchanged into the shared
-`guilhermelinosp/templates` repository; the local workflows already keep the
-contract explicit and do not grant broad permissions by default.
-
-The read-only validator workflows intentionally use the standard `GITHUB_TOKEN`
-for checkout, CodeQL SARIF upload and existing reusable checks. They do not receive
-the App private key. Privileged reporting, PR creation, comments, labels, tags and
-releases use a least-privilege installation token and run only in trusted contexts.
+All workflows use the standard `GITHUB_TOKEN` with job-scoped permissions. There is
+no GitHub App, private key or external automation dependency in this repository.
 
 ## Configuration
 
-### GitHub App automation
-
-| Setting | Storage | Purpose |
-|---------|---------|---------|
-| `HELLNET_ACTIONS_CLIENT_ID` | Actions **variable** | Client ID of the installed `hellnet-actions` App |
-| `HELLNET_ACTIONS_PRIVATE_KEY` | Actions **secret** | PEM private key of the App |
-
-The App needs repository Contents, Issues and Pull requests write access. No Registry
-credentials are needed for generation, tests or CI. Manual Apicurio operations accept
+No GitHub App settings are required. No Registry credentials are needed for
+generation, tests or CI. Manual Apicurio operations accept
 `--registry "$APICURIO_URL"` and optional `APICURIO_TOKEN` in the local environment.
 
 ### Compatibility levels
@@ -204,10 +180,9 @@ git fetch origin main
 python scripts/evolution.py --base origin/main
 ```
 
-Use Python 3.11 or newer. `grpcio-tools` supplies the pinned `protoc` compiler;
-it does not generate or run a gRPC service. Validation works offline after dependency
-installation. See [contribution instructions](CONTRIBUTING.md) for field types,
-explicit Protobuf numbers and safe Issue retries.
+Use Python 3.11 or newer. Validation works offline after dependency installation.
+See [contribution instructions](CONTRIBUTING.md) for Avro field types and safe
+Issue retries.
 
 ### Register schema manually
 
