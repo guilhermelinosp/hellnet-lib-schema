@@ -1,0 +1,56 @@
+{
+  "type": "record",
+  "name": "FastRideCancelledV2",
+  "namespace": "fast.events.ride.v2",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string"
+    },
+    {
+      "name": "eventVersion",
+      "type": "int",
+      "default": 1
+    },
+    {
+      "name": "occurredAt",
+      "type": "long"
+    },
+    {
+      "name": "rideId",
+      "type": "string"
+    },
+    {
+      "name": "riderId",
+      "type": "string"
+    },
+    {
+      "name": "driverId",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "actorType",
+      "type": "string"
+    },
+    {
+      "name": "actorId",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "reasonCode",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    }
+  ]
+}

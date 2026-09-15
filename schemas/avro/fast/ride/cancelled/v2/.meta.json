@@ -1,0 +1,7 @@
+{
+  "name": "fast.ride.cancelled.v2",
+  "type": "avro",
+  "version": 2,
+  "compatibility": "BACKWARD",
+  "createdAt": "2026-09-15T09:21:06.365389Z"
+}
