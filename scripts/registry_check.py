@@ -34,9 +34,9 @@ def check(registry, group, directory):
     root = Path.cwd() / "schemas"
     directory = confined_path(directory, root)
     meta = read_json(confined_path(directory / ".meta.json", root))
-    require(meta.get("type") in FILES and meta.get("compatibility") in MODES, "invalid metadata")
-    file = confined_path(directory / FILES[meta["type"]], root)
-    validate_document(file, meta["type"])
+    require(meta.get("type") == "avro" and meta.get("compatibility") in MODES, "invalid Avro metadata")
+    file = confined_path(directory / FILES["avro"], root)
+    validate_document(file)
     artifact = (registry.rstrip("/") + "/apis/registry/v2/groups/" + urllib.parse.quote(group, safe="")
                 + "/artifacts/" + urllib.parse.quote(meta["name"], safe=""))
     status, body = request(artifact + "/rules/COMPATIBILITY")
@@ -44,8 +44,7 @@ def check(registry, group, directory):
     rule = json.loads(body)
     require(rule.get("config") == meta["compatibility"],
             "Registry compatibility rule differs or is absent; configure it explicitly before testing")
-    content_type = {"avro": "application/vnd.apache.avro+json", "json": "application/json",
-                    "protobuf": "application/x-protobuf"}[meta["type"]]
+    content_type = "application/vnd.apache.avro+json"
     # Apicurio's PUT /test is a non-mutating rule test, not PUT /artifacts.
     status, _ = request(artifact + "/test", "PUT", file.read_bytes(), content_type)
     require(status == 204, "unexpected Registry test response")

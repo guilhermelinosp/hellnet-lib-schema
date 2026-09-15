@@ -81,15 +81,13 @@ schemas/avro/fast/ride/accepted/v1/schema.avsc
 schemas/avro/fast/ride/completed/v1/schema.avsc
 ```
 
-JSON Schema and Protobuf keep the generic layout `schemas/{format}/{schema-name}/v{version}`.
+Only Avro contracts are accepted. Every contract uses the Fast hierarchy above.
 
 ### Example schemas
 
 | Schema | Format | File |
 |--------|--------|------|
 | Ride Completed | Avro (Fast) | `schemas/avro/fast/ride/completed/v1/schema.avsc` |
-| Invoice Event | JSON | `schemas/json/hellnet-invoice-event/v1/schema.json` |
-| Stock Updated | Protobuf | `schemas/protobuf/hellnet-stock-updated/v1/schema.proto` |
 
 ## Schema naming convention
 
@@ -128,8 +126,7 @@ Each merged schema version receives an immutable tag after it reaches `main`:
 ```
 schema/fast-ride-requested/v1
 schema/fast-ride-completed/v1
-schema/hellnet-invoice-event/v1
-schema/hellnet-stock-updated/v1
+schema/fast-driver-location-updated/v1
 ```
 
 ## CI/CD Pipeline
@@ -145,7 +142,7 @@ schema/hellnet-stock-updated/v1
 | `report-pr.yml` | Completion of validator workflows | Updates one bot comment, check and relevant labels |
 | `release.yml` | Main branch after validation | Creates immutable repository semver tag and GitHub Release as the App |
 
-This repository contains Avro, JSON Schema and Protobuf contracts plus Python tooling with shell entry points.
+This repository contains Avro contracts and focused Python tooling with shell entry points.
 CI does not install Go or run Go builds, tests, vet, GoSec or govulncheck.
 Repository semver releases are separate from immutable per-contract schema tags.
 
@@ -204,10 +201,9 @@ git fetch origin main
 python scripts/evolution.py --base origin/main
 ```
 
-Use Python 3.11 or newer. `grpcio-tools` supplies the pinned `protoc` compiler;
-it does not generate or run a gRPC service. Validation works offline after dependency
-installation. See [contribution instructions](CONTRIBUTING.md) for field types,
-explicit Protobuf numbers and safe Issue retries.
+Use Python 3.11 or newer. Validation works offline after dependency installation.
+See [contribution instructions](CONTRIBUTING.md) for Avro field types and safe
+Issue retries.
 
 ### Register schema manually
 

@@ -36,15 +36,15 @@ fi
 
 NAME=$(python3 -c "import json; print(json.load(open('$META'))['name'])")
 TYPE=$(python3 -c "import json; print(json.load(open('$META'))['type'])")
+if [ "$TYPE" != "avro" ]; then
+  echo "ERROR: only Avro schemas are supported"
+  exit 1
+fi
 COMPAT=$(python3 -c "import json; print(json.load(open('$META'))['compatibility'])")
 
 # Find schema file
-case "$TYPE" in
-  avro)      FILE="$SCHEMA_DIR/schema.avsc" ; CONTENT_TYPE="application/vnd.apache.avro+json" ;;
-  json)      FILE="$SCHEMA_DIR/schema.json" ; CONTENT_TYPE="application/json" ;;
-  protobuf)  FILE="$SCHEMA_DIR/schema.proto"; CONTENT_TYPE="application/x-protobuf" ;;
-  *) echo "ERROR: unknown type: $TYPE"; exit 1 ;;
-esac
+FILE="$SCHEMA_DIR/schema.avsc"
+CONTENT_TYPE="application/vnd.apache.avro+json"
 
 if [ ! -f "$FILE" ]; then
   echo "ERROR: schema file not found: $FILE"
