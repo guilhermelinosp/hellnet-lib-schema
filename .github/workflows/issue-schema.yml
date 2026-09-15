@@ -56,6 +56,9 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
 
+      - name: Install schema tooling
+        run: python3 -m pip install --disable-pip-version-check --no-input -r requirements.txt
+
       - name: Parse issue and generate schema
         id: generate
         env:
