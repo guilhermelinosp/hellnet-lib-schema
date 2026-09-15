@@ -2,10 +2,16 @@ name: process-schema-issue
 
 on:
   workflow_dispatch:
+    inputs:
+      issue-number:
+        description: "Issue number to process"
+        required: true
+        type: string
   issues:
     types: [opened]
 
-permissions: {}
+permissions:
+  issues: read
 
 jobs:
   generate:
@@ -30,6 +36,22 @@ jobs:
           permission-issues: write
           permission-pull-requests: write
 
+      - name: Load issue for manual retry
+        id: issue
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          body=$(gh api "/repos/$REPO/issues/$ISSUE_NUMBER" --jq .body)
+          {
+            echo 'body<<ISSUE_BODY'
+            echo "$body"
+            echo 'ISSUE_BODY'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -37,7 +59,7 @@ jobs:
       - name: Parse issue and generate schema
         id: generate
         env:
-          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_BODY: ${{ github.event_name == 'workflow_dispatch' && steps.issue.outputs.body || github.event.issue.body }}
         run: |
           chmod +x scripts/generate-from-issue.sh
           result=$(./scripts/generate-from-issue.sh "$ISSUE_BODY")
@@ -78,7 +100,7 @@ jobs:
           SCHEMA_NAME: ${{ steps.generate.outputs.name }}
           SCHEMA_VERSION: ${{ steps.generate.outputs.version }}
           BRANCH_NAME: ${{ steps.branch.outputs.name }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.issue-number || github.event.issue.number }}
           REPO: ${{ github.repository }}
         run: |
           gh pr create \
