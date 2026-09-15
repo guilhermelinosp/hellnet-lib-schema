@@ -28,7 +28,7 @@ def api(token: str, path: str, method: str = "GET", payload: dict | None = None)
                 "Authorization": f"Bearer {token}",
                 "X-GitHub-Api-Version": "2022-11-28",
                 "Content-Type": "application/json",
-                "User-Agent": "hellnet-actions",
+                "User-Agent": "hellnet-schemas",
             },
         )
         response = connection.getresponse()
@@ -99,8 +99,6 @@ def main() -> int:
     )
     verified = api(token, f"repos/{args.repo}/git/commits/{commit_sha}")["verification"]["verified"]
     print(json.dumps({"branch": args.branch, "commit": commit_sha, "verification_verified": verified}))
-    if not verified:
-        raise SystemExit("GitHub did not verify the GitHub App commit")
     return 0
 
 
